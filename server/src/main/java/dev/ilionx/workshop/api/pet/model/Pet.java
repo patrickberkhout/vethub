@@ -49,6 +49,12 @@ public class Pet {
     )
     private LocalDate birthDate;
 
+    @Column(
+        name = "deleted",
+        nullable = false
+    )
+    private Boolean deleted = false;
+
     @ManyToOne
     @JoinColumn(
         name = "type_id",

@@ -50,6 +50,24 @@ public class PetResponse {
     )
     private Integer ownerId;
 
+    @Schema(
+        description = "The owner's first name",
+        example = "George"
+    )
+    private String ownerFirstName;
+
+    @Schema(
+        description = "The owner's last name",
+        example = "Franklin"
+    )
+    private String ownerLastName;
+
+    @Schema(
+        description = "Whether the pet has been soft-deleted",
+        example = "false"
+    )
+    private Boolean deleted;
+
     @Schema(description = "The pet's visits")
     private List<VisitSummaryResponse> visits;
 }

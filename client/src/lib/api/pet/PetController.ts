@@ -14,8 +14,10 @@ import type {
 /**
  * Get all pets
  */
-export async function getPets(): Promise<PetResponse[]> {
-	const { data, error } = await client.GET('/v1/pets');
+export async function getPets(includeDeleted = false): Promise<PetResponse[]> {
+	const { data, error } = await client.GET('/v1/pets', {
+		params: { query: { includeDeleted } }
+	});
 	if (error) throw error;
 	return data ?? [];
 }

@@ -109,6 +109,55 @@ All in `server/src/quality/config/`:
 - Integration tests extend `IntegrationTest` (`@SpringBootTest(webEnvironment = RANDOM_PORT)`, `@ActiveProfiles("test")`)
 - `IntegrationTest` runs `cleanDatabase()` before/after each test — deletes rows with ID > 6 for vets/pet-types/specialties to preserve seed data. Do not rely on IDs ≤ 6 being available for newly created test data.
 
+### DTO mappers (MapStruct)
+
+MapStruct `1.6.3` is used for entity → response DTO conversion. All mappers share a common config from the external library `starter-core` (`io.github.jframe.util.mapper.config.SharedMapperConfig`), which sets:
+- `componentModel = "spring"` — generated impl is a Spring `@Component`, injectable via constructor
+- `unmappedTargetPolicy = IGNORE` — unmatched target fields are silently left null; no compile warning
+- `injectionStrategy = CONSTRUCTOR` — consistent with `@RequiredArgsConstructor` style used throughout
+
+**Mappers are `abstract class`, not `interface`** — this allows concrete method overrides alongside MapStruct-generated abstract methods.
+
+**Request → entity mapping is manual in the service layer. Mappers only handle entity → response DTO**, called in the controller layer:
+
+```java
+// Controller owns the mapper; service returns entity; mapper converts at the boundary
+Vet vet = vetService.create(request);           // request passed raw to service
+return ResponseEntity.ok(vetMapper.toResponse(vet));
+```
+
+**Directory layout:** mappers live at `<domain>/model/mapper/` alongside entities, `request/`, and `response/` dirs.
+
+**Naming conventions:**
+- Mapper: `<Domain>Mapper`
+- Primary response: `<Domain>Response`
+- Lightweight nested embed: `<Domain>SummaryResponse`
+- Request DTOs: `Create<Domain>Request` / `Update<Domain>Request`
+- Mapper methods: `toResponse(Entity)`, `toResponseList(List<Entity>)`
+
+**Non-obvious patterns to replicate:**
+
+1. **Nested FK flattening** — use `@Mapping(source, target)` to promote a nested scalar to a top-level DTO field:
+   ```java
+   @Mapping(source = "owner.id", target = "ownerId")
+   public abstract PetResponse toResponse(Pet pet);
+   ```
+
+2. **`Set` → sorted `List` — write a concrete method**; MapStruct auto-generates `List → List` but not `Set → List`. Example in `VetMapper`:
+   ```java
+   public List<SpecialtyResponse> toSpecialtyResponseList(final Set<Specialty> specialties) {
+       return specialties.stream()
+           .sorted((a, b) -> Integer.compare(a.getId(), b.getId()))
+           .map(this::toSpecialtyResponse)
+           .collect(Collectors.toList());
+   }
+   ```
+   MapStruct will invoke this concrete method automatically when generating the parent `toResponse(Vet)` mapping.
+
+3. **Cross-domain mappings on one mapper** — a mapper may include methods for a sub-entity if the parent response embeds it (e.g., `VetMapper` also maps `Specialty → SpecialtyResponse` to handle the embedded list).
+
+**No test-specific mapper stubs or mocks exist.** The real Spring beans are available in `@ActiveProfiles("test")` integration tests.
+
 ### Logging
 
 | Env var | Default | Options |
